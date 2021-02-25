@@ -1,147 +1,168 @@
-import React from 'react';
-import { makeStyles } from '@material-ui/core/styles';
-import Stepper from '@material-ui/core/Stepper';
-import Step from '@material-ui/core/Step';
-import StepButton from '@material-ui/core/StepButton';
-import Button from '@material-ui/core/Button';
-import Typography from '@material-ui/core/Typography';
-import { boolean } from 'zod';
+import { Box, Button, Card, CardContent, CircularProgress, Grid, Step, StepLabel, Stepper } from '@material-ui/core';
+import { Field, Form, Formik, FormikConfig, FormikValues } from 'formik';
+import { CheckboxWithLabel, TextField } from 'formik-material-ui';
+import React, { useState } from 'react';
+import { mixed, number, object } from 'yup';
+import * as Yup from "yup";
+import data from './firebase'
 
-const useStyles = makeStyles((theme) => ({
-  root: {
-    width: '100%',
-  },
-  button: {
-    marginRight: theme.spacing(1),
-  },
-  completed: {
-    display: 'inline-block',
-  },
-  instructions: {
-    marginTop: theme.spacing(1),
-    marginBottom: theme.spacing(1),
-  },
-}));
+const sleep = (time: number) => new Promise((acc) => setTimeout(acc, time));
 
-function getSteps() {
-  return ['Select campaign settings', 'Create an ad group', 'Create an ad'];
-}
-
-function getStepContent(step: number) {
-  switch (step) {
-    case 0:
-      return 'Step 1: Select campaign settings...';
-    case 1:
-      return 'Step 2: What is an ad group anyways?';
-    case 2:
-      return 'Step 3: This is the bit I really care about!';
-    default:
-      return 'Unknown step';
-  }
-}
-
-
-export default function HorizontalNonLinearStepper() {
-  const classes = useStyles();
-  const [activeStep, setActiveStep] = React.useState(0);
-  const [completed, setCompleted] = React.useState({});
-  const steps = getSteps();
-
-  const totalSteps = () => {
-    return steps.length;
-  };
-
-  const completedSteps = () => {
-    return Object.keys(completed).length;
-  };
-
-  const isLastStep = () => {
-    return activeStep === totalSteps() - 1;
-  };
-
-  const allStepsCompleted = () => {
-    return completedSteps() === totalSteps();
-  };
-
-  const handleNext = () => {
-    const newActiveStep =
-      isLastStep() && !allStepsCompleted()
-        ? // It's the last step, but not all steps have been completed,
-          // find the first step that has been completed
-          steps.findIndex((step, i) => !(i in completed))
-        : activeStep + 1;
-    setActiveStep(newActiveStep);
-  };
-
-  const handleBack = () => {
-    setActiveStep((prevActiveStep) => prevActiveStep - 1);
-  };
-
-  const handleStep = (step: number) => () => {
-    setActiveStep(step);
-  };
-
-  // const handleComplete = () => {
-  //   const newCompleted = completed;
-  //   newCompleted[activeStep] = true;
-  //   setCompleted(newCompleted);
-  //   handleNext();
-  // };
-
-  const handleReset = () => {
-    setActiveStep(0);
-    setCompleted({});
-  };
-  // completed={completed[index]}
+export default function Home() {
   return (
-    <div className={classes.root}>
-      <Stepper nonLinear activeStep={activeStep}>
-        {steps.map((label, index) => (
-          <Step key={label}>
-            <StepButton onClick={handleStep(index)} >
-              {label}
-            </StepButton>
-          </Step>
-        ))}
-      </Stepper>
-      <div>
-        {allStepsCompleted() ? (
-          <div>
-            <Typography className={classes.instructions}>
-              All steps completed - you&apos;re finished
-            </Typography>
-            <Button onClick={handleReset}>Reset</Button>
-          </div>
-        ) : (
-          <div>
-            <Typography className={classes.instructions}>{getStepContent(activeStep)}</Typography>
-            <div>
-              <Button disabled={activeStep === 0} onClick={handleBack} className={classes.button}>
-                Back
-              </Button>
+    <div className = "container">
+    <Card>
+      <CardContent>
+        <FormikStepper
+          initialValues={{
+            firstName: '',
+            lastName: '',
+            adultOrNot: false,
+            age: 0,
+            description: '',
+          }}
+
+          validationSchema={Yup.object().shape({
+            firstName: Yup.string()
+              .required("Required"),
+              lastName: Yup.string()
+              .required("Required"),
+              MoreInfo: Yup.string()
+              .required("Required"),
+          })}
+          onSubmit={async (values) => {
+            await sleep(3000);
+           
+            data.post('/personal-info.json', values).then(async () => {
+              console.log( (await (data.get('/personal-info.json'))).data);
+            })
+          }}
+        >
+          <FormikStep label="Personal Data">
+            <Box paddingBottom={2}>
+              <Field fullWidth name="firstName" component={TextField} label="First Name" />
+            </Box>
+            <Box paddingBottom={2}>
+              <Field fullWidth name="lastName" component={TextField} label="Last Name" />
+            </Box>
+            <Box paddingBottom={2}>
+              <Field
+                name="adultOrNot"
+                type="checkbox"
+                component={CheckboxWithLabel}
+                Label={{ label: 'I can vote in the next elections' }}
+              />
+            </Box>
+          </FormikStep>
+          <FormikStep
+            label="age"
+            validationSchema={object({
+              age: mixed().when('adultOrNot', {
+                is: true,
+                then: number()
+                  .required()
+                  .min(
+                    18,
+                    'Because you said you are a an adult you need to be above 18'
+                  ),
+                otherwise: number().required(),
+              }),
+            })}
+          >
+            <Box paddingBottom={2}>
+              <Field
+                fullWidth
+                name="age"
+                type="number"
+                component={TextField}
+                label="how old I am"
+              />
+            </Box>
+          </FormikStep>
+          <FormikStep label="More Info">
+            <Box paddingBottom={2}>
+              <Field fullWidth name="description" component={TextField} label="Description" />
+            </Box>
+          </FormikStep>
+        </FormikStepper>
+      </CardContent>
+    </Card>
+    </div>
+  );
+}
+
+export interface FormikStepProps
+  extends Pick<FormikConfig<FormikValues>, 'children' | 'validationSchema'> {
+  label: string;
+}
+
+export function FormikStep({ children }: FormikStepProps) {
+  return <>{children}</>;
+}
+
+export function FormikStepper({ children, ...props }: FormikConfig<FormikValues>) {
+  const childrenArray = React.Children.toArray(children) as React.ReactElement<FormikStepProps>[];
+  const [step, setStep] = useState(0);
+  const currentChild = childrenArray[step];
+  const [completed, setCompleted] = useState(false);
+
+  function isLastStep() {
+    return step === childrenArray.length - 1;
+  }
+
+  return (
+    <Formik
+      {...props}
+      validationSchema={currentChild.props.validationSchema}
+      onSubmit={async (values, helpers) => {
+        if (isLastStep()) {
+          await props.onSubmit(values, helpers);
+          setCompleted(true);
+        } else {
+          setStep((s) => s + 1)
+          helpers.setTouched({});
+        }
+      }}
+    >
+      {({ isSubmitting }) => (
+        <Form autoComplete="off">
+          <Stepper alternativeLabel activeStep={step}>
+            {childrenArray.map((child, index) => (
+              <Step key={child.props.label} completed={step > index || completed}>
+                <StepLabel>{child.props.label}</StepLabel>
+              </Step>
+            ))}
+          </Stepper>
+
+          {currentChild}
+
+          <Grid container spacing={2}>
+            {step > 0 ? (
+              <Grid item>
+                <Button
+                  disabled={isSubmitting}
+                  variant="contained"
+                  color="primary"
+                  onClick={() => setStep((s) => s - 1)}
+                >
+                  Back
+                </Button>
+              </Grid>
+            ) : null}
+            <Grid item>
               <Button
+                startIcon={isSubmitting ? <CircularProgress size="1rem" /> : null}
+                disabled={isSubmitting}
                 variant="contained"
                 color="primary"
-                onClick={handleNext}
-                className={classes.button}
+                type="submit"
               >
-                Next
+                {isSubmitting ? 'Submitting' : isLastStep() ? 'Submit' : 'Next'}
               </Button>
-              {/* {activeStep !== steps.length &&
-                // (completed[activeStep] ? (
-                //   <Typography variant="caption" className={classes.completed}>
-                //     Step {activeStep + 1} already completed
-                //   </Typography>
-                // ) : (
-                //   <Button variant="contained" color="primary" onClick={handleComplete}>
-                //     {completedSteps() === totalSteps() - 1 ? 'Finish' : 'Complete Step'}
-                //   </Button>
-                // ))
-              } */}
-            </div>
-          </div>
-        )}
-      </div>
-    </div>
+            </Grid>
+          </Grid>
+        </Form>
+      )}
+    </Formik>
   );
 }
