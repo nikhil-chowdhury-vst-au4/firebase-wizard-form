@@ -1,6 +1,6 @@
 import React from "react";
 import { Formik } from "formik";
-import data from '../Header/firebase'
+import data from '../signup/firebase'
 
 import * as Yup from "yup";
 
@@ -51,7 +51,7 @@ const ValidatedLoginForm = () => (
           {errors.name && touched.name && (
             <div className="input-feedback">{errors.name}</div>
           )}
-          <label htmlFor="name">Password</label>
+          <label htmlFor="password">Password</label>
           <input
             name="password"
             type="password"

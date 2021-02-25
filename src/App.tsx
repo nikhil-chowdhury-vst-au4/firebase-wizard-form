@@ -2,7 +2,7 @@ import React from 'react';
 import 'bootstrap/dist/css/bootstrap.min.css';
 //import Form from "../src/Components/form"
 import "./styles.css";
-import Question from "../src/Components/Header/header"
+import Question from "./Components/signup/Signup";
 import FormPage from "../src/Components/forms/Login"
 import { BrowserRouter, Route, Switch } from 'react-router-dom';
 
@@ -11,6 +11,7 @@ function App() {
     <div className="App container">
      <BrowserRouter>
      <Switch>
+     
           <Route path="/login">
             <FormPage />
           </Route>
